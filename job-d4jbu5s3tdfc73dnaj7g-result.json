@@ -1,0 +1,75 @@
+{
+  "__type__": "PrimitiveResult",
+  "__value__": {
+    "pub_results": [
+      {
+        "__type__": "SamplerPubResult",
+        "__value__": {
+          "data": {
+            "__type__": "DataBin",
+            "__value__": {
+              "field_names": [
+                "meas"
+              ],
+              "field_types": [
+                "<class 'qiskit.primitives.containers.bit_array.BitArray'>"
+              ],
+              "shape": [],
+              "fields": {
+                "meas": {
+                  "__type__": "BitArray",
+                  "__value__": {
+                    "array": {
+                      "__type__": "ndarray",
+                      "__value__": "eJzt2TsOwjAQhGGn5RTbLUhuTAUcgA5EQ5EqsogRBSLIDjQJp8iFMVeIkHjo/7qZareeYbvf7MrC3E2ndUiHqCvR/ubUih6b2EZ/qZpYh1e/9ucUcp9O/hpyni7ccm7Fzaw8ZJyJAQBkxacPeKe/egYAAAAAAAAAAOAnfMFC8wTu1xv7"
+                    },
+                    "num_bits": 1
+                  }
+                }
+              }
+            }
+          },
+          "metadata": {
+            "circuit_metadata": {}
+          }
+        }
+      }
+    ],
+    "metadata": {
+      "execution": {
+        "execution_spans": {
+          "__type__": "ExecutionSpans",
+          "__value__": {
+            "spans": [
+              {
+                "__type__": "DoubleSliceSpan",
+                "__value__": {
+                  "start": {
+                    "__type__": "datetime",
+                    "__value__": "2025-11-26T08:49:30.818059"
+                  },
+                  "stop": {
+                    "__type__": "datetime",
+                    "__value__": "2025-11-26T08:49:33.872215"
+                  },
+                  "data_slices": {
+                    "0": [
+                      [
+                        8192
+                      ],
+                      0,
+                      1,
+                      0,
+                      8192
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "version": 2
+    }
+  }
+}
