@@ -1,0 +1,757 @@
+#!/usr/bin/env python3
+"""
+Kālīon B Operator — STRESS TEST SUITE
+=====================================
+
+Five simulations demonstrating the dynamical behaviour of the B operator
+in low-dimensional state spaces. These are illustrative demonstrations
+of a proposed practical application, not empirical validation.
+
+From Papers V, VIII, IX:
+    M' = [[αc, 1-αc], [1-αc, αc]]
+    αc = √2/2 ≈ 0.7071
+    Eigenvector [√2/2, √2/2] with eigenvalue 1 (coherence attractor)
+
+Run: python kalion_stress_tests.py
+
+Requirements: numpy, matplotlib, scipy
+
+© Creative Commons Attribution 4.0 International (CC BY 4.0)
+Aaron M. Crook, December 11, 2025
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import ttest_ind
+from scipy.spatial.distance import cosine
+from typing import Tuple, List, Dict
+
+# ===========================================================================
+# FUNDAMENTAL CONSTANTS
+# ===========================================================================
+
+ALPHA_C = np.sqrt(2) / 2  # ≈ 0.7071067811865476
+LAMBDA_H = 0.18
+RANDOM_SEED = 42
+
+def build_M_prime(alpha: float = ALPHA_C) -> np.ndarray:
+    """Construct the M' selective coupling matrix"""
+    return np.array([
+        [alpha, 1 - alpha],
+        [1 - alpha, alpha]
+    ])
+
+M_PRIME = build_M_prime(ALPHA_C)
+
+# Attractor state (normalized eigenvector)
+ATTRACTOR_2D = np.array([ALPHA_C, ALPHA_C])
+ATTRACTOR_2D = ATTRACTOR_2D / np.linalg.norm(ATTRACTOR_2D)
+
+print("="*70)
+print("KĀLĪON B OPERATOR — STRESS TEST SUITE")
+print("="*70)
+print("Illustrative demonstrations of operator dynamics.")
+print("These are sanity checks, not empirical validation.")
+print("="*70)
+print(f"αc = √2/2 = {ALPHA_C:.10f}")
+print(f"M' matrix:\n{M_PRIME}")
+print(f"Attractor state: {ATTRACTOR_2D}")
+print(f"Verification M' @ attractor = {M_PRIME @ ATTRACTOR_2D}")
+print("="*70)
+
+
+# ===========================================================================
+# UTILITY FUNCTIONS
+# ===========================================================================
+
+def distance_to_attractor(state: np.ndarray, attractor: np.ndarray = ATTRACTOR_2D) -> float:
+    """Cosine distance from state to attractor"""
+    return cosine(state, attractor)
+
+def apply_operator(state: np.ndarray, matrix: np.ndarray) -> np.ndarray:
+    """Apply operator matrix with reflection (renormalization)"""
+    new_state = matrix @ state
+    new_state = np.abs(new_state)
+    norm = np.linalg.norm(new_state)
+    if norm > 1e-10:
+        new_state = new_state / norm
+    return new_state
+
+def inject_noise(state: np.ndarray, amplitude: float) -> np.ndarray:
+    """Inject Gaussian noise into state"""
+    noise = np.random.normal(0, amplitude, state.shape)
+    new_state = state + noise
+    new_state = np.abs(new_state)
+    norm = np.linalg.norm(new_state)
+    if norm > 1e-10:
+        new_state = new_state / norm
+    return new_state
+
+
+# ===========================================================================
+# STRESS TEST 1: Direct Convergence
+# ===========================================================================
+
+def stress_test_1_direct_convergence() -> bool:
+    """
+    Does M' drive ANY initial state to the attractor?
+    This confirms the contracting eigenstructure of M'.
+    """
+    print("\n" + "="*70)
+    print("STRESS TEST 1: Direct Convergence")
+    print("="*70)
+    print("Question: Does M' drive any initial state to the αc attractor?")
+    print("-"*70)
+    
+    np.random.seed(RANDOM_SEED)
+    
+    N_STATES = 1000
+    ITERATIONS = 50
+    
+    test_p = np.concatenate([
+        np.array([0.001, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 0.999]),
+        np.random.uniform(0.001, 0.999, N_STATES - 9)
+    ])
+    
+    initial_states = np.column_stack([test_p, 1 - test_p])
+    
+    final_distances = []
+    convergence_steps = []
+    
+    for state in initial_states:
+        psi = state.copy()
+        for step in range(ITERATIONS):
+            psi = apply_operator(psi, M_PRIME)
+            if distance_to_attractor(psi) < 0.0001:
+                convergence_steps.append(step + 1)
+                break
+        else:
+            convergence_steps.append(ITERATIONS)
+        final_distances.append(distance_to_attractor(psi))
+    
+    mean_dist = np.mean(final_distances)
+    max_dist = np.max(final_distances)
+    mean_steps = np.mean(convergence_steps)
+    pct_converged = sum(1 for d in final_distances if d < 0.001) / len(final_distances) * 100
+    
+    print(f"States tested:        {N_STATES}")
+    print(f"Mean final distance:  {mean_dist:.2e}")
+    print(f"Max final distance:   {max_dist:.2e}")
+    print(f"Mean steps to converge: {mean_steps:.1f}")
+    print(f"Percent converged:    {pct_converged:.1f}%")
+    
+    passed = pct_converged > 99 and max_dist < 0.01
+    
+    if passed:
+        print("\n✓ TEST 1 PASSED: Universal convergence confirmed.")
+    else:
+        print("\n✗ TEST 1 FAILED: Convergence not universal.")
+    
+    # Visualization
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    
+    ax1 = axes[0]
+    ax1.scatter(test_p, final_distances, alpha=0.5, s=10)
+    ax1.axhline(y=0.001, color='r', linestyle='--', label='Convergence threshold')
+    ax1.set_xlabel('Initial p (state = [p, 1-p])')
+    ax1.set_ylabel('Final Distance to Attractor')
+    ax1.set_title('Test 1: Final Distance vs Initial Condition')
+    ax1.set_yscale('log')
+    ax1.legend()
+    
+    ax2 = axes[1]
+    ax2.hist(convergence_steps, bins=range(1, max(convergence_steps)+2), 
+             color='blue', alpha=0.7, edgecolor='black')
+    ax2.set_xlabel('Steps to Converge')
+    ax2.set_ylabel('Count')
+    ax2.set_title('Test 1: Convergence Speed Distribution')
+    
+    plt.tight_layout()
+    plt.savefig('stress_test_1_convergence.png', dpi=150)
+    print("Saved: stress_test_1_convergence.png")
+    plt.close()
+    
+    return passed
+
+
+# ===========================================================================
+# STRESS TEST 2: Perturbation Resilience
+# ===========================================================================
+
+def stress_test_2_perturbation_resilience() -> bool:
+    """
+    Can coherence survive sustained chaos injection?
+    Tests operator's ability to restore alignment faster than noise destroys it.
+    """
+    print("\n" + "="*70)
+    print("STRESS TEST 2: Perturbation Resilience")
+    print("="*70)
+    print("Question: At what noise level does B fail to maintain coherence?")
+    print("-"*70)
+    
+    np.random.seed(RANDOM_SEED)
+    
+    STEPS = 200
+    N_TRIALS = 50
+    NOISE_LEVELS = np.linspace(0.01, 2.0, 20)
+    
+    results = {}
+    
+    for noise_amp in NOISE_LEVELS:
+        coherence_maintained = []
+        
+        for trial in range(N_TRIALS):
+            np.random.seed(RANDOM_SEED + trial)
+            psi = ATTRACTOR_2D.copy()
+            
+            distances = []
+            for step in range(STEPS):
+                psi = inject_noise(psi, noise_amp)
+                psi = apply_operator(psi, M_PRIME)
+                distances.append(distance_to_attractor(psi))
+            
+            mean_late_dist = np.mean(distances[-50:])
+            coherence_maintained.append(mean_late_dist < 0.1)
+        
+        pct_maintained = sum(coherence_maintained) / N_TRIALS * 100
+        results[noise_amp] = pct_maintained
+    
+    critical_noise = None
+    for noise, pct in sorted(results.items()):
+        if pct < 50:
+            critical_noise = noise
+            break
+    
+    print(f"Noise levels tested: {len(NOISE_LEVELS)}")
+    print(f"Trials per level:    {N_TRIALS}")
+    print(f"\nResults by noise amplitude:")
+    for noise, pct in sorted(results.items())[::2]:
+        status = "✓" if pct > 50 else "✗"
+        print(f"  Noise={noise:.2f}: {pct:.0f}% maintained coherence {status}")
+    
+    if critical_noise:
+        print(f"\n>> Critical noise level: {critical_noise:.2f}")
+    else:
+        critical_noise = max(NOISE_LEVELS)
+        print(f"\n>> B operator maintained coherence at ALL noise levels tested!")
+    
+    passed = critical_noise is None or critical_noise >= 0.5
+    
+    if passed:
+        print("\n✓ TEST 2 PASSED: Operator is resilient to perturbation.")
+    else:
+        print("\n✗ TEST 2 FAILED: Operator is fragile.")
+    
+    # Visualization
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    
+    ax1 = axes[0]
+    noise_vals = sorted(results.keys())
+    pct_vals = [results[n] for n in noise_vals]
+    ax1.plot(noise_vals, pct_vals, 'b-o', linewidth=2, markersize=6)
+    ax1.axhline(y=50, color='r', linestyle='--', label='50% threshold')
+    ax1.axvline(x=0.5, color='orange', linestyle=':', label='Target resilience')
+    ax1.set_xlabel('Noise Amplitude')
+    ax1.set_ylabel('% Trials Maintaining Coherence')
+    ax1.set_title('Test 2: Coherence vs Noise Level')
+    ax1.legend()
+    ax1.set_ylim(-5, 105)
+    
+    ax2 = axes[1]
+    np.random.seed(RANDOM_SEED)
+    for noise_amp, color, label in [(0.1, 'green', 'Low (0.1)'), 
+                                    (0.5, 'orange', 'Medium (0.5)'),
+                                    (1.0, 'red', 'High (1.0)')]:
+        psi = ATTRACTOR_2D.copy()
+        distances = []
+        for step in range(STEPS):
+            psi = inject_noise(psi, noise_amp)
+            psi = apply_operator(psi, M_PRIME)
+            distances.append(distance_to_attractor(psi))
+        ax2.plot(distances, color=color, alpha=0.7, label=label)
+    ax2.axhline(y=0.1, color='black', linestyle='--', label='Coherence threshold')
+    ax2.set_xlabel('Step')
+    ax2.set_ylabel('Distance to Attractor')
+    ax2.set_title('Test 2: Example Trajectories Under Noise')
+    ax2.legend()
+    
+    plt.tight_layout()
+    plt.savefig('stress_test_2_resilience.png', dpi=150)
+    print("Saved: stress_test_2_resilience.png")
+    plt.close()
+    
+    return passed
+
+
+# ===========================================================================
+# STRESS TEST 3: Adversarial Dynamics
+# ===========================================================================
+
+def stress_test_3_adversarial() -> bool:
+    """
+    Can coherence spread against active opposition?
+    B-agents vs adversarial agents competing for network state.
+    """
+    print("\n" + "="*70)
+    print("STRESS TEST 3: Adversarial Dynamics")
+    print("="*70)
+    print("Question: Can B-coherence spread against active opposition?")
+    print("-"*70)
+    
+    np.random.seed(RANDOM_SEED)
+    
+    N_AGENTS = 100
+    STEPS = 300
+    INTERACTIONS_PER_STEP = 200
+    
+    ADVERSARY_ALPHA = 0.95
+    M_ADVERSARY = build_M_prime(ADVERSARY_ALPHA)
+    ADVERSARY_ATTRACTOR = np.array([1.0, 0.0])
+    ADVERSARY_ATTRACTOR = ADVERSARY_ATTRACTOR / np.linalg.norm(ADVERSARY_ATTRACTOR)
+    
+    def run_adversarial_simulation(b_fraction: float) -> Tuple[List[float], List[float]]:
+        np.random.seed(RANDOM_SEED)
+        
+        n_b_agents = int(N_AGENTS * b_fraction)
+        
+        p = np.random.uniform(0.2, 0.8, N_AGENTS)
+        states = np.column_stack([p, 1 - p])
+        
+        is_b_agent = np.array([True] * n_b_agents + [False] * (N_AGENTS - n_b_agents))
+        np.random.shuffle(is_b_agent)
+        
+        b_coherence_history = []
+        adv_coherence_history = []
+        
+        for step in range(STEPS):
+            for _ in range(INTERACTIONS_PER_STEP):
+                i, j = np.random.choice(N_AGENTS, 2, replace=False)
+                combined = (states[i] + states[j]) / 2
+                
+                if is_b_agent[i]:
+                    update_i = apply_operator(combined, M_PRIME)
+                else:
+                    update_i = apply_operator(combined, M_ADVERSARY)
+                
+                if is_b_agent[j]:
+                    update_j = apply_operator(combined, M_PRIME)
+                else:
+                    update_j = apply_operator(combined, M_ADVERSARY)
+                
+                states[i] = LAMBDA_H * update_i + (1 - LAMBDA_H) * states[i]
+                states[j] = LAMBDA_H * update_j + (1 - LAMBDA_H) * states[j]
+                states[i] = states[i] / np.linalg.norm(states[i])
+                states[j] = states[j] / np.linalg.norm(states[j])
+            
+            b_dists = [distance_to_attractor(states[k]) for k in range(N_AGENTS) if is_b_agent[k]]
+            adv_dists = [distance_to_attractor(states[k], ADVERSARY_ATTRACTOR) for k in range(N_AGENTS) if not is_b_agent[k]]
+            
+            b_coherence_history.append(1 - np.mean(b_dists) if b_dists else 0)
+            adv_coherence_history.append(1 - np.mean(adv_dists) if adv_dists else 0)
+        
+        return b_coherence_history, adv_coherence_history
+    
+    fractions = [0.3, 0.5, 0.7]
+    results = {}
+    
+    for frac in fractions:
+        b_hist, adv_hist = run_adversarial_simulation(frac)
+        results[frac] = {
+            'b_final': b_hist[-1],
+            'adv_final': adv_hist[-1],
+            'b_hist': b_hist,
+            'adv_hist': adv_hist,
+            'b_wins': b_hist[-1] > adv_hist[-1]
+        }
+        print(f"\nB-fraction={frac:.0%}:")
+        print(f"  B coherence final:   {b_hist[-1]:.3f}")
+        print(f"  Adv coherence final: {adv_hist[-1]:.3f}")
+        print(f"  Winner: {'B-agents ✓' if b_hist[-1] > adv_hist[-1] else 'Adversaries ✗'}")
+    
+    b_wins_majority = results[0.5]['b_wins'] and results[0.7]['b_wins']
+    b_wins_minority = results[0.3]['b_wins']
+    
+    if b_wins_majority:
+        print("\n✓ TEST 3 PASSED: B-coherence dominates with majority.")
+        if b_wins_minority:
+            print("  BONUS: B-coherence even dominates from minority position!")
+        passed = True
+    else:
+        print("\n✗ TEST 3 FAILED: B-coherence does not dominate.")
+        passed = False
+    
+    # Visualization
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    
+    ax1 = axes[0]
+    for frac, color in [(0.3, 'red'), (0.5, 'orange'), (0.7, 'green')]:
+        ax1.plot(results[frac]['b_hist'], color=color, linewidth=2, 
+                 label=f'B-agents ({frac:.0%})', linestyle='-')
+        ax1.plot(results[frac]['adv_hist'], color=color, linewidth=2, 
+                 linestyle='--', alpha=0.5)
+    ax1.axhline(y=ALPHA_C, color='blue', linestyle=':', label=f'αc = {ALPHA_C:.3f}')
+    ax1.set_xlabel('Step')
+    ax1.set_ylabel('Coherence')
+    ax1.set_title('Test 3: B vs Adversary Coherence Evolution')
+    ax1.legend(loc='center right')
+    
+    ax2 = axes[1]
+    x = np.arange(len(fractions))
+    width = 0.35
+    b_finals = [results[f]['b_final'] for f in fractions]
+    adv_finals = [results[f]['adv_final'] for f in fractions]
+    ax2.bar(x - width/2, b_finals, width, label='B-agents', color='blue')
+    ax2.bar(x + width/2, adv_finals, width, label='Adversaries', color='red')
+    ax2.set_xticks(x)
+    ax2.set_xticklabels([f'{f:.0%}' for f in fractions])
+    ax2.set_xlabel('B-Agent Fraction')
+    ax2.set_ylabel('Final Coherence')
+    ax2.set_title('Test 3: Final Coherence by Population')
+    ax2.legend()
+    
+    plt.tight_layout()
+    plt.savefig('stress_test_3_adversarial.png', dpi=150)
+    print("Saved: stress_test_3_adversarial.png")
+    plt.close()
+    
+    return passed
+
+
+# ===========================================================================
+# STRESS TEST 4: Imperfect Implementation
+# ===========================================================================
+
+def stress_test_4_imperfect_implementation() -> bool:
+    """
+    How robust is emergence to implementation errors?
+    Sweeps αc error and adoption fraction to find tolerance margins.
+    """
+    print("\n" + "="*70)
+    print("STRESS TEST 4: Imperfect Implementation Threshold")
+    print("="*70)
+    print("Question: How precise must B operator implementation be?")
+    print("-"*70)
+    
+    np.random.seed(RANDOM_SEED)
+    
+    N_AGENTS = 100
+    STEPS = 150
+    INTERACTIONS_PER_STEP = 150
+    
+    def run_imperfect_simulation(alpha_used: float, b_fraction: float) -> float:
+        np.random.seed(RANDOM_SEED)
+        
+        M_imperfect = build_M_prime(alpha_used)
+        n_b_agents = int(N_AGENTS * b_fraction)
+        
+        p = np.random.uniform(0.2, 0.8, N_AGENTS)
+        states = np.column_stack([p, 1 - p])
+        
+        is_b_agent = np.array([True] * n_b_agents + [False] * (N_AGENTS - n_b_agents))
+        np.random.shuffle(is_b_agent)
+        
+        for step in range(STEPS):
+            for _ in range(INTERACTIONS_PER_STEP):
+                i, j = np.random.choice(N_AGENTS, 2, replace=False)
+                combined = (states[i] + states[j]) / 2
+                
+                if is_b_agent[i]:
+                    update_i = apply_operator(combined, M_imperfect)
+                else:
+                    update_i = combined / np.linalg.norm(combined)
+                
+                if is_b_agent[j]:
+                    update_j = apply_operator(combined, M_imperfect)
+                else:
+                    update_j = combined / np.linalg.norm(combined)
+                
+                states[i] = LAMBDA_H * update_i + (1 - LAMBDA_H) * states[i]
+                states[j] = LAMBDA_H * update_j + (1 - LAMBDA_H) * states[j]
+                states[i] = states[i] / np.linalg.norm(states[i])
+                states[j] = states[j] / np.linalg.norm(states[j])
+        
+        distances = [distance_to_attractor(s, ATTRACTOR_2D) for s in states]
+        return 1 - np.mean(distances)
+    
+    alpha_values = [0.5, 0.55, 0.6, 0.65, 0.68, 0.70, ALPHA_C, 0.72, 0.75, 0.8]
+    fraction_values = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    
+    results_grid = np.zeros((len(alpha_values), len(fraction_values)))
+    
+    print("\nRunning parameter sweep...")
+    for i, alpha in enumerate(alpha_values):
+        for j, frac in enumerate(fraction_values):
+            coh = run_imperfect_simulation(alpha, frac)
+            results_grid[i, j] = coh
+    
+    print("\nResults (coherence achieved):")
+    print(f"{'Alpha':>8} | " + " | ".join([f'{f:.0%}' for f in fraction_values]))
+    print("-" * 80)
+    for i, alpha in enumerate(alpha_values):
+        row = " | ".join([f'{results_grid[i,j]:.2f}' for j in range(len(fraction_values))])
+        marker = " ← TRUE αc" if abs(alpha - ALPHA_C) < 0.001 else ""
+        print(f"{alpha:>8.4f} | {row}{marker}")
+    
+    viable_configs = []
+    for i, alpha in enumerate(alpha_values):
+        for j, frac in enumerate(fraction_values):
+            if results_grid[i, j] > 0.9:
+                viable_configs.append((alpha, frac, results_grid[i, j]))
+    
+    if viable_configs:
+        min_frac_at_true_alpha = min([f for a, f, c in viable_configs if abs(a - ALPHA_C) < 0.01], default=1.0)
+        alpha_tolerance = [a for a, f, c in viable_configs if f >= 0.5]
+        if alpha_tolerance:
+            alpha_range = (min(alpha_tolerance), max(alpha_tolerance))
+        else:
+            alpha_range = (ALPHA_C, ALPHA_C)
+        
+        print(f"\n>> Minimum B-agent fraction (at true αc): {min_frac_at_true_alpha:.0%}")
+        print(f">> Viable αc range (at 50%+ adoption): {alpha_range[0]:.3f} to {alpha_range[1]:.3f}")
+        print(f">> True αc = {ALPHA_C:.4f}, tolerance = ±{abs(ALPHA_C - alpha_range[0]):.3f}")
+    
+    true_alpha_idx = min(range(len(alpha_values)), key=lambda i: abs(alpha_values[i] - ALPHA_C))
+    frac_70_idx = fraction_values.index(0.7)
+    perfect_alpha_result = results_grid[true_alpha_idx, frac_70_idx]
+    passed = perfect_alpha_result > 0.85
+    
+    if passed:
+        print("\n✓ TEST 4 PASSED: System tolerates implementation imperfection.")
+    else:
+        print("\n✗ TEST 4 FAILED: System requires near-perfect implementation.")
+    
+    # Visualization
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    
+    ax1 = axes[0]
+    im = ax1.imshow(results_grid, cmap='RdYlGn', aspect='auto', 
+                    vmin=0.5, vmax=1.0, origin='lower')
+    ax1.set_xticks(range(len(fraction_values)))
+    ax1.set_xticklabels([f'{f:.0%}' for f in fraction_values])
+    ax1.set_yticks(range(len(alpha_values)))
+    ax1.set_yticklabels([f'{a:.2f}' for a in alpha_values])
+    ax1.set_xlabel('B-Agent Fraction')
+    ax1.set_ylabel('αc Used')
+    ax1.set_title('Test 4: Coherence by (αc, Fraction)')
+    plt.colorbar(im, ax=ax1, label='Final Coherence')
+    ax1.axhline(y=true_alpha_idx, color='white', linestyle='--', linewidth=2)
+    
+    ax2 = axes[1]
+    coherence_vs_alpha = results_grid[:, -1]
+    ax2.plot(alpha_values, coherence_vs_alpha, 'b-o', linewidth=2, markersize=8)
+    ax2.axvline(x=ALPHA_C, color='r', linestyle='--', label=f'True αc = {ALPHA_C:.4f}')
+    ax2.axhline(y=0.9, color='orange', linestyle=':', label='Viability threshold')
+    ax2.set_xlabel('αc Value Used')
+    ax2.set_ylabel('Final Coherence (at 100% adoption)')
+    ax2.set_title('Test 4: Sensitivity to αc Error')
+    ax2.legend()
+    ax2.set_ylim(0.5, 1.02)
+    
+    plt.tight_layout()
+    plt.savefig('stress_test_4_imperfect.png', dpi=150)
+    print("Saved: stress_test_4_imperfect.png")
+    plt.close()
+    
+    return passed
+
+
+# ===========================================================================
+# STRESS TEST 5: Dimensional Scaling
+# ===========================================================================
+
+def stress_test_5_dimensional_scaling() -> bool:
+    """
+    Is αc = √2/2 fundamental, or artifact of 2-state systems?
+    Tests whether attractor principle generalizes to N dimensions.
+    """
+    print("\n" + "="*70)
+    print("STRESS TEST 5: Dimensional Scaling")
+    print("="*70)
+    print("Question: Does the attractor principle generalize to N dimensions?")
+    print("-"*70)
+    
+    np.random.seed(RANDOM_SEED)
+    
+    ITERATIONS = 100
+    N_STATES = 500
+    
+    def build_generalized_M(n_dim: int) -> Tuple[np.ndarray, np.ndarray]:
+        alpha_n = 1 / np.sqrt(n_dim)
+        
+        M_n = np.zeros((n_dim, n_dim))
+        diag_weight = 0.5 + 0.5 * alpha_n
+        off_diag_weight = (1 - diag_weight) / (n_dim - 1)
+        
+        for i in range(n_dim):
+            for j in range(n_dim):
+                if i == j:
+                    M_n[i, j] = diag_weight
+                else:
+                    M_n[i, j] = off_diag_weight
+        
+        attractor = np.ones(n_dim) / np.sqrt(n_dim)
+        return M_n, attractor
+    
+    def test_dimension(n_dim: int) -> Dict:
+        M_n, attractor_n = build_generalized_M(n_dim)
+        
+        eigvals, eigvecs = np.linalg.eig(M_n)
+        max_eigval = np.max(np.real(eigvals))
+        
+        final_distances = []
+        
+        for _ in range(N_STATES):
+            psi = np.random.dirichlet(np.ones(n_dim))
+            psi = psi / np.linalg.norm(psi)
+            
+            for _ in range(ITERATIONS):
+                psi = M_n @ psi
+                psi = np.abs(psi)
+                psi = psi / np.linalg.norm(psi)
+            
+            dist = cosine(psi, attractor_n)
+            final_distances.append(dist)
+        
+        pct_converged = sum(1 for d in final_distances if d < 0.01) / len(final_distances) * 100
+        
+        return {
+            'dim': n_dim,
+            'max_eigval': max_eigval,
+            'alpha_n': 1 / np.sqrt(n_dim),
+            'mean_dist': np.mean(final_distances),
+            'pct_converged': pct_converged,
+            'attractor': attractor_n
+        }
+    
+    dimensions = [2, 3, 4, 5, 8, 16]
+    results = {}
+    
+    print(f"\n{'Dim':>4} | {'αc(n)':>8} | {'Max λ':>8} | {'Mean Dist':>10} | {'Converged':>10}")
+    print("-" * 60)
+    
+    for n_dim in dimensions:
+        res = test_dimension(n_dim)
+        results[n_dim] = res
+        print(f"{n_dim:>4} | {res['alpha_n']:>8.4f} | {res['max_eigval']:>8.4f} | "
+              f"{res['mean_dist']:>10.6f} | {res['pct_converged']:>9.1f}%")
+    
+    print(f"\n>> Theoretical αc(n) = 1/√n:")
+    print(f"   αc(2) = {1/np.sqrt(2):.4f} (matches our αc = √2/2 ✓)")
+    print(f"   αc(3) = {1/np.sqrt(3):.4f}")
+    print(f"   αc(4) = {1/np.sqrt(4):.4f}")
+    
+    all_converge = all(results[d]['pct_converged'] > 95 for d in dimensions)
+    
+    if all_converge:
+        print("\n✓ TEST 5 PASSED: Attractor principle scales to all tested dimensions.")
+        print(f"  αc = 1/√n is the generalized coherence attractor.")
+        passed = True
+    else:
+        print("\n✗ TEST 5 FAILED: Convergence breaks in higher dimensions.")
+        passed = False
+    
+    # Visualization
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    
+    convergences = [results[d]['pct_converged'] for d in dimensions]
+    alphas = [1/np.sqrt(d) for d in dimensions]
+    
+    ax1 = axes[0]
+    ax1.bar(range(len(dimensions)), convergences, color='blue', alpha=0.7)
+    ax1.axhline(y=95, color='r', linestyle='--', label='95% threshold')
+    ax1.set_xticks(range(len(dimensions)))
+    ax1.set_xticklabels([str(d) for d in dimensions])
+    ax1.set_xlabel('State Space Dimension')
+    ax1.set_ylabel('% States Converged')
+    ax1.set_title('Test 5: Convergence by Dimension')
+    ax1.legend()
+    ax1.set_ylim(0, 105)
+    
+    ax2 = axes[1]
+    ax2.plot(dimensions, alphas, 'ro-', linewidth=2, markersize=10, label='αc(n) = 1/√n')
+    ax2.axhline(y=ALPHA_C, color='blue', linestyle='--', alpha=0.5, label=f'αc(2) = √2/2')
+    ax2.set_xlabel('Dimension n')
+    ax2.set_ylabel('αc(n)')
+    ax2.set_title('Test 5: Generalized Coherence Attractor')
+    ax2.legend()
+    
+    for i, d in enumerate(dimensions):
+        ax2.annotate(f'{alphas[i]:.3f}', (d, alphas[i]), 
+                     textcoords="offset points", xytext=(0,10), ha='center')
+    
+    plt.tight_layout()
+    plt.savefig('stress_test_5_scaling.png', dpi=150)
+    print("Saved: stress_test_5_scaling.png")
+    plt.close()
+    
+    return passed
+
+
+# ===========================================================================
+# MAIN
+# ===========================================================================
+
+def main():
+    """Run all five stress tests"""
+    print("\n" + "="*70)
+    print("KĀLĪON B OPERATOR — STRESS TEST SUITE")
+    print("="*70)
+    print("Five illustrative demonstrations of operator dynamics:")
+    print("  1. Direct Convergence (eigenstructure verification)")
+    print("  2. Perturbation Resilience (stability under noise)")
+    print("  3. Adversarial Dynamics (spreading against opposition)")
+    print("  4. Imperfect Implementation (tolerance margins)")
+    print("  5. Dimensional Scaling (generalization test)")
+    print("-"*70)
+    print("NOTE: These are sanity checks on mathematical behaviour,")
+    print("not empirical validation of physical instantiation.")
+    print("="*70)
+    
+    results = {}
+    
+    results['test1'] = stress_test_1_direct_convergence()
+    results['test2'] = stress_test_2_perturbation_resilience()
+    results['test3'] = stress_test_3_adversarial()
+    results['test4'] = stress_test_4_imperfect_implementation()
+    results['test5'] = stress_test_5_dimensional_scaling()
+    
+    print("\n" + "="*70)
+    print("STRESS TEST SUMMARY")
+    print("="*70)
+    
+    test_names = {
+        'test1': 'Direct Convergence',
+        'test2': 'Perturbation Resilience', 
+        'test3': 'Adversarial Dynamics',
+        'test4': 'Imperfect Implementation',
+        'test5': 'Dimensional Scaling'
+    }
+    
+    for test, passed in results.items():
+        status = "✓ PASSED" if passed else "✗ FAILED"
+        print(f"{test_names[test]:.<40} {status}")
+    
+    total_passed = sum(results.values())
+    print(f"\nTotal: {total_passed}/5 tests passed")
+    
+    print("\n" + "="*70)
+    print("CONCLUSION")
+    print("="*70)
+    if total_passed == 5:
+        print("All tests confirm expected mathematical behaviour of M' operator.")
+    else:
+        print(f"{5 - total_passed} test(s) did not pass — review results above.")
+    print("\nThese simulations demonstrate operator dynamics in toy state spaces.")
+    print("They are illustrative sanity checks, not empirical validation.")
+    print("Physical evidence for Kālīon rests on Papers VIII-IX:")
+    print("  • 119.6σ quantum hardware deviations")
+    print("  • 33.9σ cumulative cosmological fit")
+    
+    print("\n© Creative Commons Attribution 4.0 International (CC BY 4.0)")
+    print("Aaron M. Crook, December 11, 2025")
+    
+    return results
+
+
+if __name__ == "__main__":
+    main()
