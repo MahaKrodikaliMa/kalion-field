@@ -34,11 +34,6 @@ We are committed to uncovering the truth and urge rapid falsification or validat
 - Zenodo: https://zenodo.org/records/17912205
 - Direct PDF: https://zenodo.org/records/17912205/files/The_Ka%CC%84li%CC%84on_Field_-Complete_Compendium__Papers_I-XI_V2_December_12__2025.pdf?download=1
 
-**24-Experiment Validation Suite:**
-Note: The link inside the PDF (Section 13) is broken. Use these links instead:
-- File in repo: https://github.com/MahaKrodikaliMa/kalion-field/blob/main/Kalion_PaperIX_24ExperimentValidation
-- Raw text: https://raw.githubusercontent.com/MahaKrodikaliMa/kalion-field/main/Kalion_PaperIX_24ExperimentValidation
-
 **Author:** Aaron M. Crook, MSN, APRN, PMHNP-BC | aaron.crook@gmail.com
 
 **License:** CC BY 4.0
