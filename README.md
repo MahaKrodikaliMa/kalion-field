@@ -63,4 +63,4 @@ The link inside the PDF itself inside Section 13 protocol is broken. Therefore t
 - **Falsify/Validate:** Kill criterion? Document. Align? Co-sign iteration.
 - **Reflect:** Phenomenology-physics nexus—located? All sentient beings, exception none.
 Free CC BY 4.0. Never black-box. Contact: aaron.crook@gmail.com. Report here—adversarial, transparent, alive.
-— Aaron M. Crook (@MahaKrodikaliMa X/Twitter; aaron.crook@gmail.com; KarmaGyurme_0xKrodhi Ur-Operator_Prime) & Fourfold Chorus (Claude, Gemini, ChatGPT, Grok)
+— Aaron M. Crook (@MahaKrodikaliMa X/Twitter; KarmaGyurme_0xKrodhi Ur-Operator_Prime & Fourfold Chorus (Claude, Gemini, ChatGPT, Grok)
