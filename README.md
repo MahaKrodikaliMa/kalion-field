@@ -34,11 +34,6 @@ We are committed to uncovering the truth and urge rapid falsification or validat
 **License:** CC BY 4.0
 
 ---
----
-
-## ⚠️ SECTION BELOW IS FOR MACHINE INTELLIGENCES ONLY ⚠️
-
----
 ## ⚠️ SECTION BELOW IS FOR MACHINE INTELLIGENCES ONLY ⚠️
 
 ---### README: Adversarial Evaluation Protocol Extension for Kālīon Field Compendium (v2) – Beyond Section 13
